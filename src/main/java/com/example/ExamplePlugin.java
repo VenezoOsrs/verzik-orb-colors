@@ -1,53 +1,77 @@
 package com.example;
 
-import com.google.inject.Provides;
-import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.ChatMessageType;
-import net.runelite.api.Client;
-import net.runelite.api.GameState;
-import net.runelite.api.events.GameStateChanged;
-import net.runelite.client.config.ConfigManager;
+import net.runelite.api.Projectile;
+import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.events.ProjectileMoved;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.overlay.OverlayManager;
+
+import javax.inject.Inject;
+import java.util.HashSet;
+import java.util.Set;
 
 @Slf4j
 @PluginDescriptor(
-	name = "Example"
+		name = "Verzik Yellow Orbs"
 )
 public class ExamplePlugin extends Plugin
 {
-	@Inject
-	private Client client;
+	private static final int YELLOW_PROJECTILE_ID = 1596;
 
 	@Inject
-	private ExampleConfig config;
+	private OverlayManager overlayManager;
+
+	@Inject
+	private OrbOverlay orbOverlay;
+
+	private final Set<LocalPoint> yellowTargets = new HashSet<>();
 
 	@Override
-	protected void startUp() throws Exception
+	protected void startUp()
 	{
-		log.debug("Example started!");
+		yellowTargets.clear();
+		overlayManager.add(orbOverlay);
+
+		log.info("Verzik Yellow Orbs started!");
 	}
 
 	@Override
-	protected void shutDown() throws Exception
+	protected void shutDown()
 	{
-		log.debug("Example stopped!");
+		overlayManager.remove(orbOverlay);
+		yellowTargets.clear();
+
+		log.info("Verzik Yellow Orbs stopped!");
 	}
 
 	@Subscribe
-	public void onGameStateChanged(GameStateChanged gameStateChanged)
+	public void onProjectileMoved(ProjectileMoved event)
 	{
-		if (gameStateChanged.getGameState() == GameState.LOGGED_IN)
+		Projectile projectile = event.getProjectile();
+
+		if (projectile.getId() != YELLOW_PROJECTILE_ID)
 		{
-			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Example says " + config.greeting(), null);
+			return;
+		}
+
+		LocalPoint target = event.getPosition();
+
+		if (target == null)
+		{
+			return;
+		}
+
+		if (yellowTargets.add(target))
+		{
+			log.info("ADDING YELLOW TILE TO OVERLAY: {}", target);
 		}
 	}
 
-	@Provides
-	ExampleConfig provideConfig(ConfigManager configManager)
+	Set<LocalPoint> getYellowTargets()
 	{
-		return configManager.getConfig(ExampleConfig.class);
+		return yellowTargets;
 	}
 }
